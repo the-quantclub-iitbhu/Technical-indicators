@@ -1,0 +1,84 @@
+import pandas as pd
+import numpy as np
+
+def calculate_psar(data, initial_af=0.0, max_af=0.2, step_af=0.02):
+    """
+    Calculates the Parabolic SAR (PSAR) for a given DataFrame.
+
+    The Parabolic SAR (PSAR) is a trend-following indicator that helps identify potential reversal points in a market trend.
+    It is calculated using the high and low prices over a period, with an acceleration factor (AF) that adjusts dynamically.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing the 'High' and 'Low' columns representing price data for the asset.
+    initial_af (float): Initial acceleration factor. Default is 0.0.
+    max_af (float): Maximum acceleration factor. Default is 0.2.
+    step_af (float): Step increment for adjusting the acceleration factor. Default is 0.02.
+
+    Returns:
+    pd.DataFrame: The original DataFrame with an added 'PSAR' column that contains the calculated Parabolic SAR values,
+                  and 'Trend', 'EP', and 'AF' columns used in the calculation.
+    """
+    
+    # Initialize columns
+    data['PSAR'] = data['low'][0]  # Start with the first low price
+    data['Trend'] = 1  # 1 = Uptrend, -1 = Downtrend
+    data['EP'] = data['high'][0]  # Extreme Price (EP)
+    data['AF'] = initial_af  # Acceleration Factor (AF)
+
+    for i in range(1, len(data)):
+        prev_psar = data['PSAR'][i - 1]
+        prev_af = data['AF'][i - 1]
+        prev_ep = data['EP'][i - 1]
+        prev_trend = data['Trend'][i - 1]
+
+        # Uptrend calculation
+        if prev_trend == 1:
+            psar = prev_psar + prev_af * (prev_ep - prev_psar)
+
+            # Ensure PSAR does not exceed prior two lows
+            psar = min(psar, data['low'][i - 1], data['low'][i - 2] if i > 1 else data['low'][i - 1])
+
+            # Check for trend reversal
+            if data['low'][i] < psar:
+                data.loc[i, 'Trend'] = -1  # Switch to downtrend
+                data.loc[i, 'PSAR'] = prev_ep  # Set PSAR to previous EP
+                data.loc[i, 'EP'] = data['low'][i]  # Set EP to current low
+                data.loc[i, 'AF'] = initial_af  # Reset AF
+            else:
+                # Continue uptrend
+                data.loc[i, 'Trend'] = 1
+                data.loc[i, 'PSAR'] = psar
+                # Update EP if current high is higher than previous EP
+                if data['high'][i] > prev_ep:
+                    data.loc[i, 'EP'] = data['high'][i]
+                    data.loc[i, 'AF'] = min(prev_af + step_af, max_af)
+                else:
+                    data.loc[i, 'EP'] = prev_ep
+                    data.loc[i, 'AF'] = prev_af
+
+        # Downtrend calculation
+        elif prev_trend == -1:
+            psar = prev_psar + prev_af * (prev_ep - prev_psar)
+
+            # Ensure PSAR does not exceed prior two highs
+            psar = max(psar, data['high'][i - 1], data['high'][i - 2] if i > 1 else data['high'][i - 1])
+
+            # Check for trend reversal
+            if data['high'][i] > psar:
+                data.loc[i, 'Trend'] = 1  # Switch to uptrend
+                data.loc[i, 'PSAR'] = prev_ep  # Set PSAR to previous EP
+                data.loc[i, 'EP'] = data['high'][i]  # Set EP to current high
+                data.loc[i, 'AF'] = initial_af  # Reset AF
+            else:
+                # Continue downtrend
+                data.loc[i, 'Trend'] = -1
+                data.loc[i, 'PSAR'] = psar
+                # Update EP if current low is lower than previous EP
+                if data['low'][i] < prev_ep:
+                    data.loc[i, 'EP'] = data['low'][i]
+                    data.loc[i, 'AF'] = min(prev_af + step_af, max_af)
+                else:
+                    data.loc[i, 'EP'] = prev_ep
+                    data.loc[i, 'AF'] = prev_af
+
+    return data
