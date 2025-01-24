@@ -86,8 +86,4 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 For questions, feedback, or suggestions, please open an issue in the repository or reach out to the maintainer.
 
----
-
 Stay tuned for updates as we continue to enhance and expand this library of technical indicators. 🚀
-```
-
